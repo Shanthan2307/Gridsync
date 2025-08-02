@@ -35,6 +35,35 @@ const initDatabase = () => {
         )
       `);
 
+      // Orders table
+      db.run(`
+        CREATE TABLE IF NOT EXISTS orders (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          user_address TEXT NOT NULL,
+          order_type TEXT NOT NULL,
+          strategy TEXT NOT NULL,
+          sell_amount REAL NOT NULL,
+          sell_currency TEXT NOT NULL,
+          buy_amount_estimated REAL,
+          buy_currency TEXT NOT NULL,
+          max_price REAL,
+          schedule_day INTEGER,
+          status TEXT NOT NULL DEFAULT 'PENDING',
+          series_id TEXT,
+          time_condition_met BOOLEAN DEFAULT 0,
+          price_condition_met BOOLEAN DEFAULT 0,
+          can_execute BOOLEAN DEFAULT 0,
+          last_execution_time INTEGER DEFAULT 0,
+          next_execution_time INTEGER DEFAULT 0,
+          execution_count INTEGER DEFAULT 0,
+          total_executed_amount REAL DEFAULT 0.0,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          executed_at DATETIME,
+          FOREIGN KEY (user_address) REFERENCES users(wallet_address)
+        )
+      `);
+
       // Add new columns to existing users table if they don't exist
       db.run(`ALTER TABLE users ADD COLUMN email TEXT UNIQUE`, (err) => {
         if (err && !err.message.includes('duplicate column name')) {

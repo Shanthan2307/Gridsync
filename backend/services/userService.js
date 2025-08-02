@@ -74,6 +74,28 @@ class UserService {
     }
   }
 
+  // Update user balance
+  async updateUserBalance(walletAddress, balanceData) {
+    try {
+      const { balanceUsd, balanceWatts } = balanceData;
+      
+      // Get user to find meter ID
+      const user = await this.getUserByWalletAddress(walletAddress);
+      if (!user) {
+        throw new Error('User not found');
+      }
+
+      // Update meter balance
+      await this.updateMeterBalance(user.meter_id, balanceUsd, balanceWatts);
+      
+      // Return updated user data
+      return await this.getUserByWalletAddress(walletAddress);
+    } catch (error) {
+      console.error('Error updating user balance:', error);
+      throw error;
+    }
+  }
+
   // Get user's meter data
   async getUserMeterData(walletAddress) {
     try {

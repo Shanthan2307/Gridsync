@@ -146,6 +146,50 @@ router.get('/user/:walletAddress', async (req, res) => {
   }
 });
 
+// Update user balance
+router.put('/user/:walletAddress/balance', async (req, res) => {
+  try {
+    const { walletAddress } = req.params;
+    const { balanceUsd, balanceWatts } = req.body;
+    
+    const user = await userService.getUserByWalletAddress(walletAddress);
+    
+    if (!user) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'User not found' 
+      });
+    }
+
+    // Update user balance
+    const updatedUser = await userService.updateUserBalance(walletAddress, {
+      balanceUsd: balanceUsd || user.balance_usd,
+      balanceWatts: balanceWatts || user.balance_watts
+    });
+
+    res.json({
+      success: true,
+      message: 'Balance updated successfully',
+      user: {
+        id: updatedUser.id,
+        name: updatedUser.name,
+        email: updatedUser.email,
+        walletAddress: updatedUser.wallet_address,
+        userType: updatedUser.user_type,
+        meterId: updatedUser.meter_id,
+        balanceUsd: updatedUser.balance_usd,
+        balanceWatts: updatedUser.balance_watts
+      }
+    });
+  } catch (error) {
+    console.error('Error updating user balance:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Internal server error' 
+    });
+  }
+});
+
 
 
 // Clear all data from database (for development/testing purposes)
