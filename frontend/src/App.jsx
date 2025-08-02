@@ -2,9 +2,25 @@ import { useState, useEffect } from 'react'
 import { Chart } from 'chart.js/auto'
 import './App.css'
 import Diagram from './diagram';
+import Dashboard from './Dashboard';
+import Onboarding from './components/Onboarding';
+import { useWallet } from './WalletContext';
+
 function App() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('1');
+  const { 
+    isConnected, 
+    account, 
+    provider, 
+    signer, 
+    userData,
+    isOnboarding,
+    connectWallet, 
+    disconnectWallet, 
+    completeOnboarding,
+    isLoading 
+  } = useWallet();
 
   // Chart initialization effect
   useEffect(() => {
@@ -122,6 +138,34 @@ function App() {
     }
   };
 
+  // Show loading state while checking connection
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Checking wallet connection...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // If connected but onboarding, show onboarding
+  if (isConnected && isOnboarding) {
+    return (
+      <Onboarding 
+        walletAddress={account}
+        onComplete={completeOnboarding}
+      />
+    );
+  }
+
+  // If connected and user data exists, show dashboard
+  if (isConnected && userData) {
+    return <Dashboard />;
+  }
+
+  // Landing page with connect wallet button
   return (
     <div className="min-h-screen bg-white font-sans">
       {/* Header */}
@@ -144,6 +188,12 @@ function App() {
               <a href="#tech" className="nav-link text-gray-600 hover:text-blue-600 font-medium border-b-2 border-transparent hover:border-blue-600 transition-colors duration-200">
                 Technology
               </a>
+              <button
+                onClick={connectWallet}
+                className="bg-blue-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-blue-700 transition-colors duration-200"
+              >
+                Connect Wallet
+              </button>
             </div>
 
             <button 
@@ -169,6 +219,12 @@ function App() {
             <a href="#tech" className="block px-3 py-2 text-base font-medium text-gray-700 hover:text-blue-600 hover:bg-gray-50 rounded-md">
               Technology
             </a>
+            <button
+              onClick={connectWallet}
+              className="w-full text-left px-3 py-2 text-base font-medium text-blue-600 hover:bg-blue-50 rounded-md"
+            >
+              Connect Wallet
+            </button>
           </div>
         </div>
       </header>
@@ -184,6 +240,14 @@ function App() {
               Gridsync leverages DeFi principles to solve real-world energy challenges in East Africa, 
               making electricity access seamless, programmable, and inclusive.
             </p>
+            <div className="mt-8">
+              <button
+                onClick={connectWallet}
+                className="bg-blue-600 text-white px-8 py-4 rounded-lg font-medium hover:bg-blue-700 transition-colors duration-200 text-lg"
+              >
+                Connect Wallet to Get Started
+              </button>
+            </div>
           </div>
 
                      <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
