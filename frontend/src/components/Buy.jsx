@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { useWallet } from '../WalletContext'
 import ContractService from '../services/contractService'
+import ApiService from '../services/api'
 import { ethers } from 'ethers'
 import { CHAINLINK_FEEDS } from '../constants/contracts'
 
@@ -14,11 +15,12 @@ const Buy = () => {
   const [orderStatus, setOrderStatus] = useState(null)
   const [maxPrice, setMaxPrice] = useState('')
   const [currentPrice, setCurrentPrice] = useState(null)
+  const [popup, setPopup] = useState({ show: false, type: '', title: '', message: '', details: null })
 
   // Mock exchange rates (in real app, these would come from an API)
   const exchangeRates = {
-    ETH: 3485.14, // 1 ETH = $2500 USD
-    USD: 0.00029 // 1 USD = 0.0004 ETH
+    ETH: 3485.14,
+    USD: 0.00029 
   }
 
   // Mock energy market data
@@ -35,11 +37,9 @@ const Buy = () => {
   }
 
   const buyingStrategies = [
-    { value: 'market', label: 'Market Buy' },
-    { value: 'limit', label: 'Limit Order' },
-    { value: 'dca', label: 'Dollar Cost Average (TWAP)' },
-    { value: 'grid', label: 'Grid Trading' },
-    { value: 'momentum', label: 'Momentum Strategy' }
+    { value: 'dca', label: 'TWAP' },
+    { value: 'hybrid', label: 'Hybrid TWAP' },
+    { value: 'automatic', label: 'Automatic Buy' }
   ]
 
   // Initialize contract service when wallet is connected
@@ -78,17 +78,17 @@ const Buy = () => {
 
   const handleBuy = async () => {
     if (!isConnected) {
-      alert('Please connect your wallet first')
+      showPopup('warning', 'Wallet Required', 'Please connect your wallet first to use smart contract features.')
       return
     }
 
     if (!amount || !strategy) {
-      alert('Please fill in all fields')
+      showPopup('warning', 'Missing Information', 'Please fill in all required fields to proceed with your order.')
       return
     }
 
     if (strategy === 'limit' && !maxPrice) {
-      alert('Please enter a maximum price for limit orders')
+      showPopup('warning', 'Price Required', 'Please enter a maximum price for limit orders.')
       return
     }
 
@@ -122,16 +122,93 @@ const Buy = () => {
         )
         setOrderStatus(status)
 
-        alert(`Order created successfully!\nSeries ID: ${orderResult.seriesId}\nCan Execute: ${orderResult.canExecute ? 'Yes' : 'No'}`)
-        
-        // Reset form
-        setAmount('')
-        setStrategy('')
-        setMaxPrice('')
+        // Save order to database
+        try {
+          if (strategy === 'dca') {
+            // For TWAP strategy, create 30 separate orders
+            const totalAmount = parseFloat(amount)
+            const amountPerOrder = totalAmount / 30
+            const buyAmountPerOrder = currency === 'ETH' ? amountPerOrder * 0.00029 : amountPerOrder / 3485.14
+            
+            for (let day = 1; day <= 30; day++) {
+              const orderData = {
+                user_address: account,
+                order_type: 'TWAP',
+                strategy: 'Dollar Cost Average (TWAP)',
+                sell_amount: amountPerOrder,
+                sell_currency: currency,
+                buy_amount_estimated: buyAmountPerOrder,
+                buy_currency: currency === 'ETH' ? 'USD' : 'ETH',
+                max_price: maxPrice ? parseFloat(maxPrice) : null,
+                schedule_day: day,
+                series_id: orderResult.seriesId,
+                status: day === 1 ? 'ACTIVE' : 'PENDING' // First day is active, rest are pending
+              }
+
+              await ApiService.createOrder(orderData)
+            }
+          } else {
+            // For non-TWAP strategies, create single order
+            const orderData = {
+              user_address: account,
+              order_type: strategy.toUpperCase(),
+              strategy: buyingStrategies.find(s => s.value === strategy)?.label || strategy,
+              sell_amount: parseFloat(amount),
+              sell_currency: currency,
+              buy_amount_estimated: currency === 'ETH' ? parseFloat(amount) * 0.00029 : parseFloat(amount) / 3485.14,
+              buy_currency: currency === 'ETH' ? 'USD' : 'ETH',
+              max_price: maxPrice ? parseFloat(maxPrice) : null,
+              schedule_day: null,
+              series_id: orderResult.seriesId
+            }
+
+            await ApiService.createOrder(orderData)
+          }
+
+          // Update user balance after order creation
+          try {
+            // Calculate new balance (for demo purposes, we'll add some energy credits)
+            const currentBalance = await ApiService.getUserData(account)
+            if (currentBalance.success && currentBalance.user) {
+              const currentUsd = parseFloat(currentBalance.user.balanceUsd || 0)
+              const currentWatts = parseFloat(currentBalance.user.balanceWatts || 0)
+              
+              // Add energy credits based on the order amount (simplified calculation)
+              const energyCreditsEarned = parseFloat(amount) * 0.15 // $0.15 per credit
+              const newUsdBalance = currentUsd + energyCreditsEarned
+              const newWattsBalance = currentWatts + (energyCreditsEarned * 6.67) // Convert to kWh
+              
+              await ApiService.updateUserBalance(account, {
+                balanceUsd: newUsdBalance.toFixed(2),
+                balanceWatts: newWattsBalance.toFixed(2)
+              })
+
+              // Refresh dashboard balance
+              if (window.refreshDashboardBalance) {
+                window.refreshDashboardBalance()
+              }
+            }
+          } catch (balanceError) {
+            console.error('Failed to update balance:', balanceError)
+            // Continue even if balance update fails
+          }
+        } catch (dbError) {
+          console.error('Failed to save order to database:', dbError)
+          // Continue even if database save fails
+        }
+
+        showPopup('success', 'Order Created Successfully!', 'Your energy credit order has been created and is now active on the GridSync network.', {
+          seriesId: orderResult.seriesId,
+          canExecute: orderResult.canExecute,
+          amount: `${amount} ${currency}`,
+          strategy: buyingStrategies.find(s => s.value === strategy)?.label || strategy
+        })
       }
     } catch (error) {
       console.error('Purchase failed:', error)
-      alert(`Purchase failed: ${error.message}`)
+      showPopup('error', 'Purchase Failed', `Your order could not be processed. Please try again or contact support if the problem persists.`, {
+        error: error.message
+      })
     } finally {
       setIsLoading(false)
     }
@@ -139,8 +216,143 @@ const Buy = () => {
 
   const convertedAmount = getConvertedAmount()
 
+  // Popup helper functions
+  const showPopup = (type, title, message, details = null) => {
+    setPopup({ show: true, type, title, message, details })
+  }
+
+  const hidePopup = () => {
+    setPopup({ show: false, type: '', title: '', message: '', details: null })
+  }
+
+  // Popup Component
+  const Popup = ({ show, type, title, message, details, onClose }) => {
+    if (!show) return null
+
+    const isSuccess = type === 'success'
+    const isError = type === 'error'
+    const isWarning = type === 'warning'
+
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full transform transition-all duration-300 scale-100">
+          {/* Header */}
+          <div className={`px-6 py-4 rounded-t-2xl ${isSuccess ? 'bg-green-500' : isError ? 'bg-red-500' : 'bg-yellow-500'}`}>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <div className={`w-10 h-10 rounded-full flex items-center justify-center ${isSuccess ? 'bg-green-600' : isError ? 'bg-red-600' : 'bg-yellow-600'}`}>
+                  {isSuccess && (
+                    <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                  )}
+                  {isError && (
+                    <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  )}
+                  {isWarning && (
+                    <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                    </svg>
+                  )}
+                </div>
+                <h3 className="text-xl font-semibold text-white">{title}</h3>
+              </div>
+              <button
+                onClick={onClose}
+                className="text-white hover:text-gray-200 transition-colors"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          {/* Content */}
+          <div className="px-6 py-6">
+            <p className="text-gray-700 text-base mb-4">{message}</p>
+            
+            {details && (
+              <div className="bg-gray-50 rounded-lg p-4 mb-4">
+                <div className="space-y-2 text-sm">
+                  {details.seriesId && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Series ID:</span>
+                      <span className="font-mono text-gray-800">{details.seriesId.slice(0, 10)}...</span>
+                    </div>
+                  )}
+                  {details.canExecute !== undefined && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Can Execute:</span>
+                      <span className={`font-medium ${details.canExecute ? 'text-green-600' : 'text-red-600'}`}>
+                        {details.canExecute ? 'Yes' : 'No'}
+                      </span>
+                    </div>
+                  )}
+                  {details.amount && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Amount:</span>
+                      <span className="font-medium text-gray-800">{details.amount}</span>
+                    </div>
+                  )}
+                  {details.strategy && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Strategy:</span>
+                      <span className="font-medium text-gray-800">{details.strategy}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Action Buttons */}
+            <div className="flex space-x-3">
+              <button
+                onClick={onClose}
+                className={`flex-1 px-4 py-3 rounded-lg font-medium transition-colors ${
+                  isSuccess 
+                    ? 'bg-green-500 text-white hover:bg-green-600' 
+                    : isError 
+                    ? 'bg-red-500 text-white hover:bg-red-600'
+                    : 'bg-yellow-500 text-white hover:bg-yellow-600'
+                }`}
+              >
+                {isSuccess ? 'Continue' : 'Close'}
+              </button>
+              {isSuccess && (
+                <button
+                  onClick={() => {
+                    onClose()
+                    // Reset form
+                    setAmount('')
+                    setStrategy('')
+                    setMaxPrice('')
+                  }}
+                  className="flex-1 px-4 py-3 bg-gray-100 text-gray-700 rounded-lg font-medium hover:bg-gray-200 transition-colors"
+                >
+                  New Order
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="px-[5vw] mt-[1vh]">
+      {/* Popup Component */}
+      <Popup 
+        show={popup.show}
+        type={popup.type}
+        title={popup.title}
+        message={popup.message}
+        details={popup.details}
+        onClose={hidePopup}
+      />
       {/* Wallet Connection Check */}
       {!isConnected && (
         <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
@@ -385,32 +597,7 @@ const Buy = () => {
         </div>
       </div>
       {/* Recent Energy Transactions */}
-      <div className="mt-8">
-        <h3 className="text-[20px] font-light text-gray-900 mb-4">Recent Energy Transactions</h3>
-        <div className="space-y-3">
-          <div className="flex justify-between items-center py-2 px-4 bg-gray-50 rounded-lg">
-            <div>
-              <p className="text-[16px] font-medium text-gray-900">Market Buy</p>
-              <p className="text-[14px] text-gray-500">2 minutes ago</p>
-            </div>
-            <div className="text-right">
-              <p className="text-[16px] font-medium text-gray-900">500 Credits</p>
-              <p className="text-[14px] text-gray-500">$75.00</p>
-            </div>
-          </div>
-          <div className="flex justify-between items-center py-2 px-4 bg-gray-50 rounded-lg">
-            <div>
-              <p className="text-[16px] font-medium text-gray-900">Grid Trading</p>
-              <p className="text-[14px] text-gray-500">5 minutes ago</p>
-            </div>
-            <div className="text-right">
-              <p className="text-[16px] font-medium text-gray-900">1,200 Credits</p>
-              <p className="text-[14px] text-gray-500">$180.00</p>
-            </div>
-          </div>
 
-        </div>
-      </div>
       </div>
       </div>
     </div>

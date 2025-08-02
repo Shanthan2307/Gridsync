@@ -7,7 +7,7 @@ const Sidebar = ({ activePage, onPageChange }) => {
   const navigationItems = [
     { id: 'dashboard', label: 'Dashboard', icon: 'grid', active: activePage === 'dashboard' },
     { id: 'buy-electricity', label: 'Buy Electricity', icon: 'lightning', active: activePage === 'buy-electricity' },
-    { id: 'history', label: 'History', icon: 'clock', active: activePage === 'history' },
+    { id: 'activity', label: 'Activity', icon: 'clock', active: activePage === 'activity' },
     { id: 'wallet', label: 'Wallet', icon: 'wallet', active: activePage === 'wallet' },
     { id: 'analytics', label: 'Usage Analytics', icon: 'chart', active: activePage === 'analytics' },
     { id: 'settings', label: 'Settings', icon: 'settings', active: activePage === 'settings' },

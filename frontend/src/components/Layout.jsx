@@ -3,6 +3,7 @@ import Sidebar from './Sidebar';
 import Dashboard from '../Dashboard';
 import { useWallet } from '../WalletContext';
 import Buy from './Buy';
+import Activity from './Activity';
 
 const Layout = () => {
   const [activePage, setActivePage] = useState('dashboard');
@@ -14,8 +15,8 @@ const Layout = () => {
         return <Dashboard />;
       case 'buy-electricity':
         return <Buy/>;
-      case 'history':
-        return <div className="p-8">History Page - Coming Soon</div>;
+      case 'activity':
+        return <Activity/>;
       case 'wallet':
         return <div className="p-8">Wallet Page - Coming Soon</div>;
       case 'analytics':
@@ -41,7 +42,7 @@ const Layout = () => {
               <h2 className="text-[42px] font-semibold text-gray-900">
                 {activePage === 'dashboard' && `Welcome back, ${userData?.name || 'User'}!`}
                 {activePage === 'buy-electricity' && 'Buy Electricity'}
-                {activePage === 'history' && 'Transaction History'}
+                {activePage === 'activity' && 'Activity'}
                 {activePage === 'wallet' && 'Wallet Management'}
                 {activePage === 'analytics' && 'Usage Analytics'}
                 {activePage === 'settings' && 'Settings'}

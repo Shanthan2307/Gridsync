@@ -10,142 +10,13 @@ const Activity = () => {
   const [activeTab, setActiveTab] = useState('pending')
   const [currentPage, setCurrentPage] = useState(1)
   const [ordersPerPage] = useState(10)
-
-  // Mock data for demonstration (replace with real API calls)
-  const mockPendingOrders = [
-    {
-      id: 1,
-      order_type: 'TWAP',
-      strategy: 'Dollar Cost Average (TWAP)',
-      sell_amount: 3.33,
-      sell_currency: 'USDC',
-      buy_amount_estimated: 0.001,
-      buy_currency: 'ETH',
-      schedule_day: 1,
-      status: 'ACTIVE',
-      created_at: '2024-01-15T10:30:00Z',
-      series_id: 'series_001'
-    },
-    {
-      id: 2,
-      order_type: 'TWAP',
-      strategy: 'Dollar Cost Average (TWAP)',
-      sell_amount: 3.33,
-      sell_currency: 'USDC',
-      buy_amount_estimated: 0.001,
-      buy_currency: 'ETH',
-      schedule_day: 2,
-      status: 'PENDING',
-      created_at: '2024-01-15T10:30:00Z',
-      series_id: 'series_001'
-    },
-    {
-      id: 3,
-      order_type: 'TWAP',
-      strategy: 'Dollar Cost Average (TWAP)',
-      sell_amount: 3.33,
-      sell_currency: 'USDC',
-      buy_amount_estimated: 0.001,
-      buy_currency: 'ETH',
-      schedule_day: 3,
-      status: 'PENDING',
-      created_at: '2024-01-15T10:30:00Z',
-      series_id: 'series_001'
-    },
-    {
-      id: 4,
-      order_type: 'TWAP',
-      strategy: 'Dollar Cost Average (TWAP)',
-      sell_amount: 3.33,
-      sell_currency: 'USDC',
-      buy_amount_estimated: 0.001,
-      buy_currency: 'ETH',
-      schedule_day: 4,
-      status: 'PENDING',
-      created_at: '2024-01-15T10:30:00Z',
-      series_id: 'series_001'
-    },
-    {
-      id: 5,
-      order_type: 'TWAP',
-      strategy: 'Dollar Cost Average (TWAP)',
-      sell_amount: 3.33,
-      sell_currency: 'USDC',
-      buy_amount_estimated: 0.001,
-      buy_currency: 'ETH',
-      schedule_day: 5,
-      status: 'PENDING',
-      created_at: '2024-01-15T10:30:00Z',
-      series_id: 'series_001'
-    }
-  ]
-
-  const mockExecutedOrders = [
-    {
-      id: 6,
-      order_type: 'TWAP',
-      strategy: 'Dollar Cost Average (TWAP)',
-      sell_amount: 3.33,
-      sell_currency: 'USDC',
-      buy_amount_estimated: 0.001,
-      buy_currency: 'ETH',
-      schedule_day: 1,
-      status: 'FILLED',
-      created_at: '2024-01-10T10:30:00Z',
-      executed_at: '2024-01-10T10:35:00Z',
-      series_id: 'series_002'
-    },
-    {
-      id: 7,
-      order_type: 'TWAP',
-      strategy: 'Dollar Cost Average (TWAP)',
-      sell_amount: 3.33,
-      sell_currency: 'USDC',
-      buy_amount_estimated: 0.001,
-      buy_currency: 'ETH',
-      schedule_day: 2,
-      status: 'FILLED',
-      created_at: '2024-01-11T10:30:00Z',
-      executed_at: '2024-01-11T10:35:00Z',
-      series_id: 'series_002'
-    },
-    {
-      id: 8,
-      order_type: 'TWAP',
-      strategy: 'Dollar Cost Average (TWAP)',
-      sell_amount: 3.33,
-      sell_currency: 'USDC',
-      buy_amount_estimated: 0.001,
-      buy_currency: 'ETH',
-      schedule_day: 3,
-      status: 'FILLED',
-      created_at: '2024-01-12T10:30:00Z',
-      executed_at: '2024-01-12T10:35:00Z',
-      series_id: 'series_002'
-    },
-    {
-      id: 9,
-      order_type: 'TWAP',
-      strategy: 'Dollar Cost Average (TWAP)',
-      sell_amount: 3.33,
-      sell_currency: 'USDC',
-      buy_amount_estimated: 0.001,
-      buy_currency: 'ETH',
-      schedule_day: 4,
-      status: 'FILLED',
-      created_at: '2024-01-13T10:30:00Z',
-      executed_at: '2024-01-13T10:35:00Z',
-      series_id: 'series_002'
-    }
-  ]
+  const [isTWAPExpanded, setIsTWAPExpanded] = useState(false)
+  const [isOtherOrdersExpanded, setIsOtherOrdersExpanded] = useState(false)
+  const [expandedSeries, setExpandedSeries] = useState(new Set())
 
   useEffect(() => {
     if (isConnected && account) {
       fetchOrders()
-    } else {
-      // Use mock data for demonstration
-      setPendingOrders(mockPendingOrders)
-      setExecutedOrders(mockExecutedOrders)
     }
   }, [isConnected, account])
 
@@ -162,11 +33,16 @@ const Activity = () => {
       // Fetch executed orders
       const executedResponse = await ApiService.getOrders(account, 'FILLED')
       setExecutedOrders(executedResponse.orders)
+
+      // Refresh dashboard balance when viewing orders
+      if (window.refreshDashboardBalance) {
+        window.refreshDashboardBalance()
+      }
     } catch (error) {
       console.error('Error fetching orders:', error)
-      // Fallback to mock data
-      setPendingOrders(mockPendingOrders)
-      setExecutedOrders(mockExecutedOrders)
+      // Set empty arrays if API fails
+      setPendingOrders([])
+      setExecutedOrders([])
     } finally {
       setIsLoading(false)
     }
@@ -244,70 +120,95 @@ const Activity = () => {
               const filledCount = seriesOrders.filter(order => order.status === 'FILLED').length
               const activeCount = seriesOrders.filter(order => order.status === 'ACTIVE').length
               const pendingCount = seriesOrders.filter(order => order.status === 'PENDING').length
+              const isSeriesExpanded = expandedSeries.has(seriesId)
               
               return (
                 <div key={seriesId} className="border-b border-gray-100 last:border-b-0">
-                  <div className="px-6 py-3 ">
+                  <div className="px-6 py-3">
                     <div className="flex justify-between items-center">
                       <div>
-                        <h4 className="text-sm font-medium text-gray-900">Series {seriesId.slice(-6)}</h4>
-                        <p className="text-xs text-gray-500">
-                          Total: {totalAmount.toFixed(2)} {seriesOrders[0].sell_currency} | 
+                        <h4 className="text-sm font-medium text-gray-900 text-left">Series {seriesId.slice(-6)}</h4>
+                        <p className="text-xs text-gray-500 text-left">
+                          Total: {totalAmount.toFixed(4)} {seriesOrders[0].sell_currency} | 
                           Filled: {filledCount} | Active: {activeCount} | Pending: {pendingCount}
                         </p>
                       </div>
-                      <div className="text-xs text-gray-500">
-                        {seriesOrders.length}/30 orders
+                      <div className="flex items-center space-x-3">
+                        <div className="text-xs text-gray-500">
+                          {seriesOrders.length}/30 orders
+                        </div>
+                        <button
+                          onClick={() => {
+                            const newExpanded = new Set(expandedSeries)
+                            if (isSeriesExpanded) {
+                              newExpanded.delete(seriesId)
+                            } else {
+                              newExpanded.add(seriesId)
+                            }
+                            setExpandedSeries(newExpanded)
+                          }}
+                          className="flex items-center text-sm text-orange-600 hover:text-orange-700 font-medium"
+                        >
+                          {isSeriesExpanded ? (
+                            <>
+                              <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                              </svg>
+                              Collapse
+                            </>
+                          ) : (
+                            <>
+                              <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                              </svg>
+                              Expand
+                            </>
+                          )}
+                        </button>
                       </div>
                     </div>
                   </div>
-                  <div className="overflow-x-auto">
-                    <table className="min-w-full divide-y divide-gray-200">
-                      <thead className="bg-gray-50">
-                        <tr>
-                          <th className="px-6 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Day
-                          </th>
-                          <th className="px-6 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Amount
-                          </th>
-                          <th className="px-6 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Buy (Est.)
-                          </th>
-                          <th className="px-6 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Status
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody className="bg-white divide-y divide-gray-200">
-                        {seriesOrders.slice(0, 10).map((order) => (
-                          <tr key={order.id} className="hover:bg-gray-50">
-                            <td className="px-6 py-2 whitespace-nowrap text-sm font-medium text-gray-900">
-                              Day {order.schedule_day}
-                            </td>
-                            <td className="px-6 py-2 whitespace-nowrap text-sm text-gray-900">
-                              {order.sell_amount.toFixed(2)} {order.sell_currency}
-                            </td>
-                            <td className="px-6 py-2 whitespace-nowrap text-sm text-gray-900">
-                              ~{order.buy_amount_estimated.toFixed(3)} {order.buy_currency}
-                            </td>
-                            <td className="px-6 py-2 whitespace-nowrap">
-                              {getStatusBadge(order.status)}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                  {seriesOrders.length > 10 && (
-                    <div className="px-6 py-3 bg-gray-50 text-center">
-                      <p className="text-sm text-gray-500">
-                        Showing first 10 of {seriesOrders.length} orders. 
-                        <button className="ml-2 text-orange-600 hover:text-orange-700 font-medium">
-                          View All
-                        </button>
-                      </p>
-                    </div>
+                  {isSeriesExpanded && (
+                    <>
+                      <div className="overflow-x-auto">
+                        <table className="min-w-full divide-y divide-gray-200">
+                          <thead className="bg-gray-50">
+                            <tr>
+                              <th className="px-6 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Day
+                              </th>
+                              <th className="px-6 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Amount
+                              </th>
+                              <th className="px-6 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Buy (Est.)
+                              </th>
+                              <th className="px-6 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Status
+                              </th>
+                            </tr>
+                          </thead>
+                          <tbody className="bg-white divide-y divide-gray-200">
+                            {seriesOrders.map((order) => (
+                              <tr key={order.id} className="hover:bg-gray-50">
+                                <td className="px-6 py-2 whitespace-nowrap text-sm font-medium text-gray-900">
+                                  Day {order.schedule_day}
+                                </td>
+                                <td className="px-6 py-2 whitespace-nowrap text-sm text-gray-900">
+                                  {order.sell_amount.toFixed(4)} {order.sell_currency}
+                                </td>
+                                <td className="px-6 py-2 whitespace-nowrap text-sm text-gray-900">
+                                  ~{(order.sell_amount*3395.24).toFixed(3)} USD
+                                </td>
+                                <td className="px-6 py-2 whitespace-nowrap">
+                                  {getStatusBadge(order.status)}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </>
                   )}
                 </div>
               )
@@ -318,82 +219,106 @@ const Activity = () => {
         {/* Other Orders */}
         {nonTWAPOrders.length > 0 && (
           <div className="bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden">
-            <div className="px-6 py-4 border-b border-gray-200">
+            <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
               <h3 className="text-xl font-medium text-gray-900">Other Orders</h3>
+              <button
+                onClick={() => setIsOtherOrdersExpanded(!isOtherOrdersExpanded)}
+                className="flex items-center text-sm text-orange-600 hover:text-orange-700 font-medium"
+              >
+                {isOtherOrdersExpanded ? (
+                  <>
+                    <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                    </svg>
+                    Collapse
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                    Expand ({nonTWAPOrders.length} orders)
+                  </>
+                )}
+              </button>
             </div>
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Type
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Sell Amount
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Buy Amount (Est.)
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Status
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Created
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {paginatedOrders.map((order) => (
-                    <tr key={order.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                        {order.order_type}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {order.sell_amount.toFixed(2)} {order.sell_currency}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        ~{order.buy_amount_estimated.toFixed(3)} {order.buy_currency}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        {getStatusBadge(order.status)}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {formatDate(order.created_at)}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            
-            {/* Pagination */}
-            {totalPages > 1 && (
-              <div className="px-6 py-4 border-t border-gray-200">
-                <div className="flex justify-between items-center">
-                  <div className="text-sm text-gray-500">
-                    Showing {((currentPage - 1) * ordersPerPage) + 1} to {Math.min(currentPage * ordersPerPage, nonTWAPOrders.length)} of {nonTWAPOrders.length} orders
-                  </div>
-                  <div className="flex space-x-2">
-                    <button
-                      onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                      disabled={currentPage === 1}
-                      className="px-3 py-1 text-sm border border-gray-300 rounded-md disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
-                    >
-                      Previous
-                    </button>
-                    <span className="px-3 py-1 text-sm text-gray-700">
-                      Page {currentPage} of {totalPages}
-                    </span>
-                    <button
-                      onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                      disabled={currentPage === totalPages}
-                      className="px-3 py-1 text-sm border border-gray-300 rounded-md disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
-                    >
-                      Next
-                    </button>
-                  </div>
+            {isOtherOrdersExpanded && (
+              <>
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Type
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Sell Amount
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Buy Amount (Est.)
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Status
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Created
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {paginatedOrders.map((order) => (
+                        <tr key={order.id} className="hover:bg-gray-50">
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                            {order.order_type}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {order.sell_amount.toFixed(4)} {order.sell_currency}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            ~{order.sell_amount.toFixed(4)} USD
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            {getStatusBadge(order.status)}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {formatDate(order.created_at)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
-              </div>
+                
+                {/* Pagination */}
+                {totalPages > 1 && (
+                  <div className="px-6 py-4 border-t border-gray-200">
+                    <div className="flex justify-between items-center">
+                      <div className="text-sm text-gray-500">
+                        Showing {((currentPage - 1) * ordersPerPage) + 1} to {Math.min(currentPage * ordersPerPage, nonTWAPOrders.length)} of {nonTWAPOrders.length} orders
+                      </div>
+                      <div className="flex space-x-2">
+                        <button
+                          onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                          disabled={currentPage === 1}
+                          className="px-3 py-1 text-sm border border-gray-300 rounded-md disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+                        >
+                          Previous
+                        </button>
+                        <span className="px-3 py-1 text-sm text-gray-700">
+                          Page {currentPage} of {totalPages}
+                        </span>
+                        <button
+                          onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                          disabled={currentPage === totalPages}
+                          className="px-3 py-1 text-sm border border-gray-300 rounded-md disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+                        >
+                          Next
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </>
             )}
           </div>
         )}
@@ -435,12 +360,6 @@ const Activity = () => {
           </div>
         </div>
       )}
-
-      {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-light text-gray-900 mb-2">Order Activity</h1>
-        <p className="text-gray-500">Track your pending and executed orders</p>
-      </div>
 
       {/* Tab Navigation */}
       <div className="mb-6">
