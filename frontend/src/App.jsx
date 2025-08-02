@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { Chart } from 'chart.js/auto'
 import './App.css'
 import Diagram from './diagram';
-import Dashboard from './Dashboard';
+import Layout from './components/Layout';
 import Onboarding from './components/Onboarding';
 import { useWallet } from './WalletContext';
 
@@ -162,7 +162,7 @@ function App() {
 
   // If connected and user data exists, show dashboard
   if (isConnected && userData) {
-    return <Dashboard />;
+    return <Layout />;
   }
 
   // Landing page with connect wallet button

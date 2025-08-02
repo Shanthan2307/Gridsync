@@ -14,7 +14,9 @@ const initDatabase = () => {
         CREATE TABLE IF NOT EXISTS users (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           name TEXT NOT NULL,
+          email TEXT UNIQUE,
           wallet_address TEXT UNIQUE NOT NULL,
+          user_type TEXT NOT NULL DEFAULT 'individual',
           meter_id TEXT UNIQUE,
           created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
           updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
@@ -33,20 +35,22 @@ const initDatabase = () => {
         )
       `);
 
-      // Insert some sample data
-      db.run(`
-        INSERT OR IGNORE INTO users (name, wallet_address, meter_id) VALUES 
-        ('John Doe', '0x742d35Cc6634C0532925a3b8D4C9db96C4b4d8b6', 'METER001'),
-        ('Jane Smith', '0x1234567890123456789012345678901234567890', 'METER002')
-      `, (err) => {
-        if (err) {
-          console.error('Error initializing database:', err);
-          reject(err);
-        } else {
-          console.log('Database initialized successfully');
-          resolve();
+      // Add new columns to existing users table if they don't exist
+      db.run(`ALTER TABLE users ADD COLUMN email TEXT UNIQUE`, (err) => {
+        if (err && !err.message.includes('duplicate column name')) {
+          console.error('Error adding email column:', err);
         }
       });
+
+      db.run(`ALTER TABLE users ADD COLUMN user_type TEXT NOT NULL DEFAULT 'individual'`, (err) => {
+        if (err && !err.message.includes('duplicate column name')) {
+          console.error('Error adding user_type column:', err);
+        }
+      });
+
+      // Database initialized successfully
+      console.log('Database initialized successfully');
+      resolve();
     });
   });
 };
@@ -90,10 +94,37 @@ const runQueryExecute = (sql, params = []) => {
   });
 };
 
+// Function to clear all data from the database
+const clearAllData = () => {
+  return new Promise((resolve, reject) => {
+    db.serialize(() => {
+      db.run('DELETE FROM users', (err) => {
+        if (err) {
+          console.error('Error clearing users table:', err);
+          reject(err);
+          return;
+        }
+        
+        db.run('DELETE FROM meters', (err) => {
+          if (err) {
+            console.error('Error clearing meters table:', err);
+            reject(err);
+            return;
+          }
+          
+          console.log('All data cleared from database');
+          resolve();
+        });
+      });
+    });
+  });
+};
+
 module.exports = {
   db,
   initDatabase,
   runQuery,
   runQuerySingle,
-  runQueryExecute
+  runQueryExecute,
+  clearAllData
 }; 

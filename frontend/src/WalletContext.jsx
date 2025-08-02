@@ -17,6 +17,7 @@ export const WalletProvider = ({ children }) => {
   const [account, setAccount] = useState('');
   const [provider, setProvider] = useState(null);
   const [signer, setSigner] = useState(null);
+  const [balance, setBalance] = useState('0.0000');
   const [isLoading, setIsLoading] = useState(true);
   const [userData, setUserData] = useState(null);
   const [isOnboarding, setIsOnboarding] = useState(false);
@@ -73,6 +74,11 @@ export const WalletProvider = ({ children }) => {
         setSigner(signer);
         setIsConnected(true);
         
+        // Get initial balance
+        const balanceWei = await provider.getBalance(account);
+        const balanceEth = ethers.formatEther(balanceWei);
+        setBalance(parseFloat(balanceEth).toFixed(4));
+        
         // Save connection state to localStorage
         localStorage.setItem('walletConnected', 'true');
         localStorage.setItem('walletAccount', account);
@@ -80,8 +86,8 @@ export const WalletProvider = ({ children }) => {
         // Check if user exists in backend
         await checkUserInBackend(account);
         
-        // Listen for account changes
-        window.ethereum.on('accountsChanged', (accounts) => {
+                // Listen for account changes
+        window.ethereum.on('accountsChanged', async (accounts) => {
           if (accounts.length === 0) {
             // User disconnected
             disconnectWallet();
@@ -89,6 +95,11 @@ export const WalletProvider = ({ children }) => {
             // Account changed
             setAccount(accounts[0]);
             checkUserInBackend(accounts[0]);
+            
+            // Update balance for new account
+            const balanceWei = await provider.getBalance(accounts[0]);
+            const balanceEth = ethers.formatEther(balanceWei);
+            setBalance(parseFloat(balanceEth).toFixed(4));
           }
         });
 
@@ -139,6 +150,7 @@ export const WalletProvider = ({ children }) => {
     setAccount('');
     setProvider(null);
     setSigner(null);
+    setBalance('0.0000');
     setUserData(null);
     setIsOnboarding(false);
     
@@ -152,6 +164,7 @@ export const WalletProvider = ({ children }) => {
     account,
     provider,
     signer,
+    balance,
     isLoading,
     userData,
     isOnboarding,

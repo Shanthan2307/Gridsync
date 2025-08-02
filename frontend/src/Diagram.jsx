@@ -26,7 +26,7 @@ const Diagram = () => {
     // Second SVG rotates when line reaches ~60% of the path (around second curve)
     setTimeout(() => {
       setSecondSvgRotation(true)
-    }, 1200) // 60% of 2 seconds
+    }, 900) // 60% of 2 seconds
     
     // Meter animation starts when line completes
     setTimeout(() => {
@@ -67,7 +67,7 @@ const Diagram = () => {
     <div className=' flex mt-[5vw] mx-[5vw] gap-x-[1vw]'>
         <div className="w-1/5">
         <button 
-          className='text-[48px] text-white bg-orange-500 px-[70px] rounded-[50px] w-full text-center h-[80px] hover:bg-orange-600 transition-colors'
+          className='text-[48px] text-white px-[70px] rounded-[50px] w-full text-center h-[80px] fillButton'
           onClick={handleFillClick}
           disabled={isAnimating}
         >
@@ -75,7 +75,7 @@ const Diagram = () => {
         </button>
 
         </div>
-        <div className='w-2/5 pt-[40px] pb-[49px] relative'>
+        <div className='w-[45%] pt-[40px] pb-[49px] relative'>
         <svg className='w-full' viewBox="0 0 329 318" fill="none" xmlns="http://www.w3.org/2000/svg">
 <path 
   d="M0 2H111.991C111.991 2 120.852 2 237.5 2C354.148 2 358.653 154.43 237.5 154.43C116.347 154.43 245.179 154.43 104 154.43C-37.1788 154.43 -24.1623 316 104 316C232.162 316 323.5 316 323.5 316" 
@@ -106,7 +106,7 @@ const Diagram = () => {
           xmlns="http://www.w3.org/2000/svg"
           style={{
             transform: firstSvgRotation ? 'rotate(360deg)' : 'rotate(0deg)',
-            transition: firstSvgRotation ? 'transform 0.8s ease-in-out' : 'none'
+            transition: firstSvgRotation ? 'transform 0.7s ease-in-out' : 'none'
           }}
         >
 <rect width="43" height="43" rx="21.5" fill="white"/>
@@ -122,7 +122,7 @@ const Diagram = () => {
           xmlns="http://www.w3.org/2000/svg"
           style={{
             transform: secondSvgRotation ? 'rotate(360deg)' : 'rotate(0deg)',
-            transition: secondSvgRotation ? 'transform 0.8s ease-in-out' : 'none'
+            transition: secondSvgRotation ? 'transform 0.7s ease-in-out' : 'none'
           }}
         >
 <rect width="43" height="43" rx="21.5" fill="white"/>
@@ -131,17 +131,17 @@ const Diagram = () => {
 </svg>
 
         </div>
-        <div className='w-2/5 flex flex-col justify-end'>
+        <div className='w-[35%] flex flex-col justify-end'>
 
-            <div className="meter flex bg-white p-[10px] gap-x-[10px] relative border-[1px] border-gray-200 h-[98px]">
-                <div className="bg-gray-300 w-full py-[15px] text-[48px] leading-[1em]">$</div>
-                <div className="bg-gray-300 w-full py-[15px] text-[48px] leading-[1em]">
+            <div className="meter flex bg-white p-[10px] gap-x-[10px] relative border-[1px] border-gray-200 h-[118px] rounded-[15px]">
+                <div className="innershadow w-full py-[25px] text-[48px] leading-[1em] rounded-[10px]">$</div>
+                <div className="innershadow w-full py-[25px] text-[48px] leading-[1em] rounded-[10px]">
                   {Math.floor(meterValue / 100)}
                 </div>
-                <div className="bg-gray-300 w-full py-[15px] text-[48px] leading-[1em]">
+                <div className="innershadow w-full py-[25px] text-[48px] leading-[1em] rounded-[10px]">
                   {Math.floor((meterValue % 100) / 10)}
                 </div>
-                <div className="bg-gray-300 w-full py-[15px] text-[48px] leading-[1em]">
+                <div className="innershadow w-full py-[25px] text-[48px] leading-[1em] rounded-[10px]">
                   {meterValue % 10}
                 </div>
             </div>

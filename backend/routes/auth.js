@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const userService = require('../services/userService');
+const { clearAllData } = require('../database');
 
 // Check if user exists by wallet address
 router.post('/check-user', async (req, res) => {
@@ -24,7 +25,9 @@ router.post('/check-user', async (req, res) => {
         user: {
           id: user.id,
           name: user.name,
+          email: user.email,
           walletAddress: user.wallet_address,
+          userType: user.user_type,
           meterId: user.meter_id,
           balanceUsd: user.balance_usd,
           balanceWatts: user.balance_watts
@@ -49,12 +52,20 @@ router.post('/check-user', async (req, res) => {
 // Create new user (onboarding)
 router.post('/onboard', async (req, res) => {
   try {
-    const { name, walletAddress, meterId } = req.body;
+    const { name, email, walletAddress, userType, meterId } = req.body;
     
-    if (!name || !walletAddress || !meterId) {
+    if (!name || !email || !walletAddress || !userType || !meterId) {
       return res.status(400).json({ 
         success: false, 
-        message: 'Name, wallet address, and meter ID are required' 
+        message: 'Name, email, wallet address, user type, and meter ID are required' 
+      });
+    }
+
+    // Validate user type
+    if (!['individual', 'power_supplier'].includes(userType)) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'User type must be either "individual" or "power_supplier"' 
       });
     }
 
@@ -70,7 +81,9 @@ router.post('/onboard', async (req, res) => {
     // Create new user
     const newUser = await userService.createUser({
       name,
+      email,
       walletAddress,
+      userType,
       meterId
     });
 
@@ -80,7 +93,9 @@ router.post('/onboard', async (req, res) => {
       user: {
         id: newUser.id,
         name: newUser.name,
+        email: newUser.email,
         walletAddress: newUser.wallet_address,
+        userType: newUser.user_type,
         meterId: newUser.meter_id,
         balanceUsd: newUser.balance_usd,
         balanceWatts: newUser.balance_watts
@@ -114,7 +129,9 @@ router.get('/user/:walletAddress', async (req, res) => {
       user: {
         id: user.id,
         name: user.name,
+        email: user.email,
         walletAddress: user.wallet_address,
+        userType: user.user_type,
         meterId: user.meter_id,
         balanceUsd: user.balance_usd,
         balanceWatts: user.balance_watts
@@ -130,5 +147,22 @@ router.get('/user/:walletAddress', async (req, res) => {
 });
 
 
+
+// Clear all data from database (for development/testing purposes)
+router.delete('/clear-data', async (req, res) => {
+  try {
+    await clearAllData();
+    res.json({
+      success: true,
+      message: 'All data cleared successfully'
+    });
+  } catch (error) {
+    console.error('Error clearing data:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Failed to clear data' 
+    });
+  }
+});
 
 module.exports = router; 

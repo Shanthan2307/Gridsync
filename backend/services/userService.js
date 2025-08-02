@@ -21,7 +21,7 @@ class UserService {
   // Create new user (onboarding)
   async createUser(userData) {
     try {
-      const { name, walletAddress, meterId } = userData;
+      const { name, email, walletAddress, userType, meterId } = userData;
       
       // Check if meter is already assigned to another user
       const existingUser = await runQuerySingle(
@@ -42,9 +42,9 @@ class UserService {
 
       // Create user
       const result = await runQueryExecute(
-        `INSERT INTO users (name, wallet_address, meter_id) 
-         VALUES (?, ?, ?)`,
-        [name, walletAddress, meterId]
+        `INSERT INTO users (name, email, wallet_address, user_type, meter_id) 
+         VALUES (?, ?, ?, ?, ?)`,
+        [name, email, walletAddress, userType, meterId]
       );
 
       // Get the created user with meter data

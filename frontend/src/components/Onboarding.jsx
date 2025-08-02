@@ -3,6 +3,8 @@ import apiService from '../services/api';
 
 const Onboarding = ({ walletAddress, onComplete }) => {
   const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [userType, setUserType] = useState('individual');
   const [meterId, setMeterId] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
@@ -10,8 +12,15 @@ const Onboarding = ({ walletAddress, onComplete }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    if (!name.trim() || !meterId.trim()) {
+    if (!name.trim() || !email.trim() || !meterId.trim()) {
       setError('Please fill in all fields');
+      return;
+    }
+
+    // Basic email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email.trim())) {
+      setError('Please enter a valid email address');
       return;
     }
 
@@ -21,7 +30,9 @@ const Onboarding = ({ walletAddress, onComplete }) => {
     try {
       const response = await apiService.onboardUser({
         name: name.trim(),
+        email: email.trim(),
         walletAddress,
+        userType,
         meterId: meterId.trim()
       });
 
@@ -61,6 +72,42 @@ const Onboarding = ({ walletAddress, onComplete }) => {
                 value={name}
                 onChange={(e) => setName(e.target.value)}
               />
+            </div>
+
+            <div className="mb-4">
+              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+                Email Address
+              </label>
+              <input
+                id="email"
+                name="email"
+                type="email"
+                required
+                className="appearance-none rounded-lg relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
+                placeholder="Enter your email address"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
+            </div>
+
+            <div className="mb-4">
+              <label htmlFor="userType" className="block text-sm font-medium text-gray-700 mb-2">
+                User Type
+              </label>
+              <select
+                id="userType"
+                name="userType"
+                required
+                className="appearance-none rounded-lg relative block w-full px-3 py-2 border border-gray-300 text-gray-900 focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
+                value={userType}
+                onChange={(e) => setUserType(e.target.value)}
+              >
+                <option value="individual">Individual Consumer</option>
+                <option value="power_supplier">Power Supplier</option>
+              </select>
+              <p className="mt-1 text-xs text-gray-500">
+                Select whether you're an individual consumer or a power supplier
+              </p>
             </div>
 
             <div className="mb-4">
