@@ -61,10 +61,7 @@ const Sidebar = ({ activePage, onPageChange }) => {
     <div className="w-64 bg-gray-50 h-screen flex flex-col border-r border-gray-200">
       {/* Logo */}
       <div className="p-6 border-b border-gray-200">
-        <h1 className="text-xl font-bold text-gray-800">
-          <span className="font-bold">Grid</span>
-          <span className="font-normal">Sync</span>
-        </h1>
+        <img src="/image.png" alt="" className='w-[80%] py-[3vh] pl-[1vw]'/>
       </div>
 
       {/* Navigation */}
